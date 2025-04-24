@@ -23,6 +23,8 @@ from reward import grasp_reward
 
 from math import radians, sin, cos
 
+
+
 def set_axes_equal(ax):
 # 这一段是copy别人的。用处不是很大。
     '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
@@ -300,6 +302,29 @@ class FR5_Env(gym.Env):
         else:
             angle += random.uniform(-10, 10)
         return angle
+    
+    def _check_grasp_success(self):
+        Gripper_posx = p.getLinkState(self.fr5, 6)[0][0]
+        Gripper_posy = p.getLinkState(self.fr5, 6)[0][1]
+        Gripper_posz = p.getLinkState(self.fr5, 6)[0][2]
+        relative_position = np.array([0, 0, 0.15])
+        
+        # 固定夹爪相对于机械臂末端的相对位置转换
+        rotation = R.from_quat(p.getLinkState(self.fr5, 7)[1])
+        rotated_relative_position = rotation.apply(relative_position)
+        # print([Gripper_posx, Gripper_posy,Gripper_posz])
+        gripper_centre_pos = [Gripper_posx, Gripper_posy,Gripper_posz] + rotated_relative_position
+        object_pos = self.target_position
+        ee_pos = gripper_centre_pos
+        gripper_orientation = p.getLinkState(self.fr5, 7)[1]
+        gripper_orientation = R.from_quat(gripper_orientation)
+        gripper_orientation = gripper_orientation.as_euler('xyz', degrees=True)
+        dist = np.linalg.norm(np.array(object_pos) - np.array(gripper_centre_pos))
+        
+        # 距离接近 + 物体抬高
+        close_enough = dist < 0.05
+        # lifted = object_pos[2] > 0.12
+        return close_enough
 
 if __name__ == "__main__":
     from stable_baselines3.common.env_checker import check_env 
